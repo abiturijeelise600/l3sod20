@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Catch The Falling Objects Game</title>
+<style>
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    user-select:none;
+  }
+  #game-container {
+    position: relative;
+    width: 350px;
+    height: 600px;
+    background: linear-gradient(180deg, #1f1c2c, #928dab);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  #scoreboard {
+    position: absolute;
+    top: 10px; left: 10px;
+    font-weight: 700;
+    font-size: 1.3rem;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
+    user-select: none;
+  }
+  #basket {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 40px;
+    background: #ffe066;
+    border-radius: 15px 15px 5px 5px;
+    box-shadow: 0 5px 15px rgba(255, 224, 102, 0.7);
+  }
+  #basket:before {
+    content: "";
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 12px;
+    background: #ffb703;
+    border-radius: 20px 20px 0 0;
+  }
+  .falling-object {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: #f94144;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #f94144;
+  }
+  /* Controls buttons for mobile */
+  #controls {
+    position: absolute;
+    bottom: 80px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 30px;
+    user-select:none;
+  }
+  .control-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 2.5rem;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(255,255,255,0.3);
+    transition: background 0.3s ease;
+    user-select:none;
+  }
+  .control-btn:active {
+    background: rgba(255, 255, 255, 0.35);
+  }
+  /* Game over screen */
+  #game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.85);
+    width: 90%;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    display: none;
+    user-select:none;
+  }
+  #game-over h2 {
+    margin: 0 0 15px 0;
+    font-size: 2.2rem;
+    color: #ff5252;
+  }
+  #game-over p {
+    font-size: 1.2rem;
+    margin: 10px 0 20px 0;
+  }
+  #btn-restart {
+    background: #06d6a0;
+    color: #1a1a1a;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 25px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(6, 214, 160, 0.7);
+    transition: background 0.3s ease;
+  }
+  #btn-restart:hover {
+    background: #00b385;
+  }
+</style>
+</head>
+<body>
+  <div id="game-container" role="main" aria-label="Catch the Falling Objects Game">
+    <div id="scoreboard" aria-live="polite">Score: 0</div>
+    <div id="basket" aria-label="Player basket"></div>
+    <div id="controls" aria-label="Game controls for mobile">
+      <button class="control-btn" id="btn-left" aria-label="Move basket left">&#8592;</button>
+      <button class="control-btn" id="btn-right" aria-label="Move basket right">&#8594;</button>
+    </div>
+    <div id="game-over" role="dialog" aria-modal="true" aria-labelledby="gameover-title" tabindex="-1">
+      <h2 id="gameover-title">Game Over!</h2>
+      <p id="final-score"></p>
+      <button id="btn-restart">Restart</button>
+    </div>
+  </div>
+
+<script>
+  (() => {
+    const gameContainer = document.getElementById("game-container");
+    const basket = document.getElementById("basket");
+    const scoreboard = document.getElementById("scoreboard");
+    const btnLeft = document.getElementById("btn-left");
+    const btnRight = document.getElementById("btn-right");
+    const gameOverScreen = document.getElementById("game-over");
+    const finalScoreText = document.getElementById("final-score");
+    const btnRestart = document.getElementById("btn-restart");
+
+    const containerWidth = 350;
+    const containerHeight = 600;
+    const basketWidth = 90;
+    const basketSpeed = 10;
+    const objectSize = 30;
+    const objectFallSpeedMin = 2;
+    const objectFallSpeedMax = 5;
+    const maxObjects = 5; // maximum simultaneous falling objects
+    let basketX = (containerWidth - basketWidth) / 2;
+    let score = 0;
+    let gameOver = false;
+
+    let fallingObjects = [];
+
+    // Setup basket position
+    basket.style.left = basketX + "px";
+
+    // Generate a random integer between min and max inclusive
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Create a falling object DOM element and initialize
+    function createFallingObject() {
+      const obj = document.createElement("div");
+      obj.classList.add("falling-object");
+      const startX = randInt(0, containerWidth - objectSize);
+      obj.style.left = startX + "px";
+      obj.style.top = -objectSize + "px";
+      gameContainer.appendChild(obj);
+      return {
+        el: obj,
+        x: startX,
+        y: -objectSize,
+        speed: (Math.random() * (objectFallSpeedMax - objectFallSpeedMin) + objectFallSpeedMin),
+      };
+    }
+
+    // Initialize falling objects array to maxObjects
+    function initFallingObjects() {
+      for(let i = 0; i < maxObjects; i++) {
+        fallingObjects.push(createFallingObject());
+      }
+    }
+
+    // Move basket left or right with boundaries
+    function moveBasket(direction) {
+      if(gameOver) return;
+      if(direction === "left") {
+        basketX = Math.max(0, basketX - basketSpeed);
+      } else if(direction === "right") {
+        basketX = Math.min(containerWidth - basketWidth, basketX + basketSpeed);
+      }
+      basket.style.left = basketX + "px";
+    }
+
+    // Detect collision between basket and object
+    function isCatch(object) {
+      const basketTop = containerHeight - 20 - 40; // basket Y top (containerHeight - space from bottom - basket height)
+      const objectBottomY = object.y + objectSize;
+      // Condition: Object bottom is within catch height area, and horizontal overlap
+      if(objectBottomY >= basketTop) {
+        if(object.x + objectSize > basketX && object.x < basketX + basketWidth) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Update falling objects position and check for catches or missed objects
+    function updateObjects() {
+      if(gameOver) return;
+      for(let i = 0; i < fallingObjects.length; i++) {
+        let obj = fallingObjects[i];
+        obj.y += obj.speed;
+        obj.el.style.top = obj.y + "px";
+
+        if(isCatch(obj)) {
+          score++;
+          scoreboard.textContent = "Score: " + score;
+          resetObject(obj);
+          continue;
+        }
+        if(obj.y > containerHeight) { 
+          // Missed object - game over
+          endGame();
+          return;
+        }
+      }
+    }
+
+    // Reset object to top with new random X and speed
+    function resetObject(obj) {
+      obj.y = -objectSize - randInt(10, 100);
+      obj.x = randInt(0, containerWidth - objectSize);
+      obj.speed = (Math.random() * (objectFallSpeedMax - objectFallSpeedMin) + objectFallSpeedMin);
+      obj.el.style.left = obj.x + "px";
+      obj.el.style.top = obj.y + "px";
+    }
+
+    // Main game loop animation
+    function gameLoop() {
+      if(gameOver) return;
+      updateObjects();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Key event handlers for desktop controls
+    function onKeyDown(e) {
+      if(gameOver) return;
+      if(e.key === "ArrowLeft" || e.key === "a") {
+        moveBasket("left");
+      } else if(e.key === "ArrowRight" || e.key === "d") {
+        moveBasket("right");
+      }
+    }
+
+    // Mobile button event handlers
+    function onBtnLeftDown() {
+      if(gameOver) return;
+      moveBasket("left");
+    }
+    function onBtnRightDown() {
+      if(gameOver) return;
+      moveBasket("right");
+    }
+
+    // Game over handler
+    function endGame() {
+      gameOver = true;
+      finalScoreText.textContent = "Your final score: " + score;
+      gameOverScreen.style.display = "block";
+      gameOverScreen.focus();
+    }
+
+    // Restart the game
+    function restartGame() {
+      // Reset all state
+      score = 0;
+      scoreboard.textContent = "Score: 0";
+      basketX = (containerWidth - basketWidth) / 2;
+      basket.style.left = basketX + "px";
+      fallingObjects.forEach(resetObject);
+      gameOver = false;
+      gameOverScreen.style.display = "none";
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Initialize event listeners
+    window.addEventListener("keydown", onKeyDown);
+    btnLeft.addEventListener("touchstart", (e) => { e.preventDefault(); onBtnLeftDown(); });
+    btnRight.addEventListener("touchstart", (e) => { e.preventDefault(); onBtnRightDown(); });
+    btnLeft.addEventListener("mousedown", onBtnLeftDown);
+    btnRight.addEventListener("mousedown", onBtnRightDown);
+    btnRestart.addEventListener("click", restartGame);
+
+    // Initialize game
+    initFallingObjects();
+    requestAnimationFrame(gameLoop);
+
+  })();
+</script>
+</body>
+</html>
+

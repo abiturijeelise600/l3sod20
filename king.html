@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar System Animation</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
+            overflow: hidden;
+        }
+        .sun {
+            width: 100px;
+            height: 100px;
+            background-color: yellow;
+            border-radius: 50%;
+            position: absolute;
+        }
+        .planet {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            position: absolute;
+        }
+        .mercury {
+            background-color: gray;
+            animation: orbit 10s linear infinite;
+        }
+        .venus {
+            background-color: orange;
+            animation: orbit 12s linear infinite;
+        }
+        .earth {
+            background-color: blue;
+            animation: orbit 14s linear infinite;
+        }
+        .mars {
+            background-color: red;
+            animation: orbit 16s linear infinite;
+        }
+        .jupiter {
+            background-color: brown;
+            animation: orbit 20s linear infinite;
+        }
+        .saturn {
+            background-color: gold;
+            animation: orbit 24s linear infinite;
+        }
+        .uranus {
+            background-color: lightblue;
+            animation: orbit 28s linear infinite;
+        }
+        .neptune {
+            background-color: darkblue;
+            animation: orbit 32s linear infinite;
+        }
+        @keyframes orbit {
+            0% { transform: rotate(0deg) translateX(150px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(150px) rotate(-360deg); }
+        }
+        /* Different distances for each planet */
+        .mercury { animation-duration: 10s; }
+        .venus { animation-duration: 12s; }
+        .earth { animation-duration: 14s; }
+        .mars { animation-duration: 16s; }
+        .jupiter { animation-duration: 20s; }
+        .saturn { animation-duration: 24s; }
+        .uranus { animation-duration: 28s; }
+        .neptune { animation-duration: 32s; }
+    </style>
+</head>
+<body>
+    <div class="sun"></div>
+    <div class="planet mercury"></div>
+    <div class="planet venus"></div>
+    <div class="planet earth"></div>
+    <div class="planet mars"></div>
+    <div class="planet jupiter"></div>
+    <div class="planet saturn"></div>
+    <div class="planet uranus"></div>
+    <div class="planet neptune"></div>
+</body>
+</html>

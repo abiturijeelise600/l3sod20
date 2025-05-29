@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Simple Memory Card Game</title>
+<style>
+  /* Reset and basic setup */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100vh;
+    color: #fff;
+    padding: 10px;
+    user-select: none;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  header h1 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  header p {
+    margin: 0.2rem 0 0;
+    font-weight: 300;
+    font-size: 0.9rem;
+  }
+
+  main {
+    width: 100%;
+    max-width: 350px;
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #stats {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 0.8rem;
+    font-weight: 600;
+    font-size: 1rem;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  #game-board {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-gap: 10px;
+  }
+
+  .card {
+    width: 100%;
+    padding-bottom: 125%; /* aspect ratio 4:5 */
+    position: relative;
+    cursor: pointer;
+    perspective: 600px;
+  }
+
+  .card-inner {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 6px 8px rgba(0,0,0,0.3);
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+  }
+
+  .card.flipped .card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .card-front, .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    backface-visibility: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .card-front {
+    background: #fff;
+    color: #444;
+    transform: rotateY(180deg);
+    box-shadow: inset 0 0 10px #ddd;
+    user-select: none;
+  }
+
+  .card-back {
+    background: #764ba2;
+    background: linear-gradient(135deg, #764ba2, #667eea);
+    color: #fff;
+    user-select: none;
+  }
+
+  button#restart {
+    margin-top: 1rem;
+    background: #ff6f91;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 25px;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(255, 111, 145, 0.6);
+    transition: background 0.3s ease;
+    user-select: none;
+  }
+  button#restart:hover {
+    background: #ff456f;
+  }
+  button#restart:active {
+    background: #d2344c;
+  }
+
+  /* Responsive for smaller mobile devices */
+  @media (max-width: 360px) {
+    body {
+      padding: 5px;
+    }
+    header h1 {
+      font-size: 1.5rem;
+    }
+    #stats {
+      font-size: 0.9rem;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Memory Match Game</h1>
+  <p>Find all matching pairs!</p>
+</header>
+<main>
+  <div id="stats">
+    <span>Moves: <span id="moves">0</span></span>
+    <span>Time: <span id="time">00:00</span></span>
+  </div>
+  <div id="game-board" aria-label="Memory game board" role="grid"></div>
+  <button id="restart" aria-label="Restart game">Restart Game</button>
+</main>
+
+<script>
+  (function(){
+    const symbols = ['🍎','🍌','🍇','🍓','🍍','🥝','🍒','🍑'];
+    // 8 pairs total
+
+    let cardsArray = [];
+    let flippedCards = [];
+    let matchedCount = 0;
+    let moves = 0;
+    let timerInterval = null;
+    let totalSeconds = 0;
+    const gameBoard = document.getElementById('game-board');
+    const movesElem = document.getElementById('moves');
+    const timeElem = document.getElementById('time');
+    const restartBtn = document.getElementById('restart');
+
+    function shuffleArray(array) {
+      for(let i=array.length-1; i>0; i--){
+        const j = Math.floor(Math.random() * (i+1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function startTimer(){
+      if(timerInterval) clearInterval(timerInterval);
+      totalSeconds = 0;
+      timeElem.textContent = '00:00';
+      timerInterval = setInterval(() => {
+        totalSeconds++;
+        let minutes = Math.floor(totalSeconds / 60);
+        let seconds = totalSeconds % 60;
+        timeElem.textContent = 
+          `${minutes < 10 ? '0' : ''}${minutes}:` + 
+          `${seconds < 10 ? '0' : ''}${seconds}`;
+      }, 1000);
+    }
+
+    function stopTimer(){
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    function createCards() {
+      cardsArray = [];
+      symbols.forEach(sym => {
+        cardsArray.push(sym);
+        cardsArray.push(sym);
+      });
+      shuffleArray(cardsArray);
+    }
+
+    function createCardElement(symbol, index) {
+      const card = document.createElement('div');
+      card.classList.add('card');
+      card.setAttribute('role', 'gridcell');
+      card.setAttribute('tabindex', '0');
+      card.dataset.symbol = symbol;
+      card.dataset.index = index;
+
+      const inner = document.createElement('div');
+      inner.classList.add('card-inner');
+
+      const front = document.createElement('div');
+      front.classList.add('card-front');
+      front.textContent = symbol;
+
+      const back = document.createElement('div');
+      back.classList.add('card-back');
+      back.textContent = '❓';
+
+      inner.appendChild(front);
+      inner.appendChild(back);
+      card.appendChild(inner);
+
+      // Click handler
+      card.addEventListener('click', () => handleCardClick(card));
+      // Keyboard accessibility: flip on Enter or Space
+      card.addEventListener('keydown', (e) => {
+        if(e.code === 'Enter' || e.code === 'Space'){
+          e.preventDefault();
+          handleCardClick(card);
+        }
+      });
+
+      return card;
+    }
+
+    function handleCardClick(card) {
+      if (flippedCards.length === 2 || card.classList.contains('flipped') || matchedCount === symbols.length) {
+        return; // busy or already flipped or game ended
+      }
+      card.classList.add('flipped');
+      flippedCards.push(card);
+
+      if(flippedCards.length === 1 && moves === 0) {
+        startTimer();
+      }
+
+      if(flippedCards.length === 2){
+        moves++;
+        movesElem.textContent = moves;
+
+        const [card1, card2] = flippedCards;
+        if(card1.dataset.symbol === card2.dataset.symbol){
+          matchedCount++;
+          flippedCards = [];
+          if(matchedCount === symbols.length){
+            stopTimer();
+            setTimeout(() => alert(`🎉 You Win! Completed in ${moves} moves and ${timeElem.textContent} time.`), 300);
+          }
+        } else {
+          // Flip cards back after short delay
+          setTimeout(() => {
+            card1.classList.remove('flipped');
+            card2.classList.remove('flipped');
+            flippedCards = [];
+          }, 1000);
+        }
+      }
+    }
+
+    function initializeGame(){
+      matchedCount = 0;
+      moves = 0;
+      movesElem.textContent = '0';
+      stopTimer();
+      createCards();
+      gameBoard.innerHTML = '';
+      cardsArray.forEach((symbol, i) => {
+        const cardElem = createCardElement(symbol, i);
+        gameBoard.appendChild(cardElem);
+      });
+    }
+
+    restartBtn.addEventListener('click', () => {
+      initializeGame();
+    });
+
+    // Initialize the game on load
+    initializeGame();
+
+  })();
+</script>
+</body>
+</html>
+
